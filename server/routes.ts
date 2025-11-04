@@ -1,15 +1,39 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertFeedbackSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // POST /api/feedback - Submit new feedback
-  app.post("/api/feedback", async (req, res) => {
+  // Auth middleware - Required for Replit Auth
+  await setupAuth(app);
+
+  // Auth routes - Required for Replit Auth
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Public feedback submission - via feedback link
+  app.post("/api/feedback/submit/:linkId", async (req, res) => {
+    try {
+      const { linkId } = req.params;
+      
+      // Find user by feedback link ID
+      const user = await storage.getUserByFeedbackLinkId(linkId);
+      if (!user) {
+        return res.status(404).json({ error: "Invalid feedback link" });
+      }
+
       const validatedData = insertFeedbackSchema.parse(req.body);
-      const feedback = await storage.createFeedback(validatedData);
+      const feedback = await storage.createFeedback(user.id, validatedData);
       res.json(feedback);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -20,10 +44,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/feedback - Get all feedback
-  app.get("/api/feedback", async (req, res) => {
+  // Protected routes - require authentication
+  
+  // Get user's feedback
+  app.get("/api/feedback", isAuthenticated, async (req: any, res) => {
     try {
-      const allFeedback = await storage.getAllFeedback();
+      const userId = req.user.claims.sub;
+      const allFeedback = await storage.getFeedbackByUserId(userId);
       res.json(allFeedback);
     } catch (error) {
       res.status(500).json({ error: "Failed to retrieve feedback" });

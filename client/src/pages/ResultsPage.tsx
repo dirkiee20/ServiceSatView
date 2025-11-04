@@ -7,6 +7,10 @@ import { Star, MessageSquare, TrendingUp, Award } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Feedback } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/authUtils";
 
 const categoryLabels: Record<string, string> = {
   service_quality: "Service Quality",
@@ -16,11 +20,44 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function ResultsPage() {
-  const { data: feedbackList = [], isLoading } = useQuery<Feedback[]>({
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+
+  // Redirect to login if not authenticated - Replit Auth integration
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, authLoading, toast]);
+
+  const { data: feedbackList = [], isLoading, error } = useQuery<Feedback[]>({
     queryKey: ["/api/feedback"],
+    retry: false,
   });
 
-  if (isLoading) {
+  // Handle unauthorized error
+  useEffect(() => {
+    if (error && isUnauthorizedError(error as Error)) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+    }
+  }, [error, toast]);
+
+  if (authLoading || isLoading) {
     return (
       <div className="p-8 flex items-center justify-center">
         <p className="text-muted-foreground">Loading feedback data...</p>
@@ -30,9 +67,10 @@ export default function ResultsPage() {
 
   // Calculate statistics
   const totalResponses = feedbackList.length;
-  const averageRating = totalResponses > 0
-    ? (feedbackList.reduce((sum, f) => sum + f.rating, 0) / totalResponses).toFixed(1)
-    : "0.0";
+  const averageRating =
+    totalResponses > 0
+      ? (feedbackList.reduce((sum, f) => sum + f.rating, 0) / totalResponses).toFixed(1)
+      : "0.0";
 
   // Category breakdown
   const categoryStats: Record<string, { total: number; sum: number }> = {};
@@ -50,9 +88,10 @@ export default function ResultsPage() {
   }));
 
   // Find top category
-  const topCategory = categoryData.length > 0
-    ? categoryData.reduce((max, curr) => curr.rating > max.rating ? curr : max)
-    : null;
+  const topCategory =
+    categoryData.length > 0
+      ? categoryData.reduce((max, curr) => (curr.rating > max.rating ? curr : max))
+      : null;
 
   // Rating distribution
   const ratingCounts = [0, 0, 0, 0, 0];
@@ -70,22 +109,29 @@ export default function ResultsPage() {
     { name: "1 Star", value: ratingCounts[0] },
   ];
 
-  // Trend data (last 7 days or grouped by date)
+  // Trend data (last 30 entries grouped by date)
   const trendData = feedbackList
     .slice(0, 30)
     .reverse()
-    .reduce((acc: Array<{ date: string; rating: number; count: number }>, feedback) => {
-      const date = new Date(feedback.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const existing = acc.find(item => item.date === date);
-      if (existing) {
-        existing.rating = (existing.rating * existing.count + feedback.rating) / (existing.count + 1);
-        existing.count++;
-      } else {
-        acc.push({ date, rating: feedback.rating, count: 1 });
-      }
-      return acc;
-    }, [])
-    .map(item => ({ date: item.date, rating: parseFloat(item.rating.toFixed(1)) }));
+    .reduce(
+      (acc: Array<{ date: string; rating: number; count: number }>, feedback) => {
+        const date = new Date(feedback.createdAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        const existing = acc.find((item) => item.date === date);
+        if (existing) {
+          existing.rating =
+            (existing.rating * existing.count + feedback.rating) / (existing.count + 1);
+          existing.count++;
+        } else {
+          acc.push({ date, rating: feedback.rating, count: 1 });
+        }
+        return acc;
+      },
+      []
+    )
+    .map((item) => ({ date: item.date, rating: parseFloat(item.rating.toFixed(1)) }));
 
   // Recent feedback for display
   const recentFeedbackItems = feedbackList.slice(0, 10).map((f) => ({
@@ -103,16 +149,14 @@ export default function ResultsPage() {
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Customer Satisfaction Insights</h1>
-        <p className="text-muted-foreground">
-          Real-time feedback and satisfaction metrics
-        </p>
+        <p className="text-muted-foreground">Real-time feedback and satisfaction metrics</p>
       </div>
 
       {totalResponses === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground text-lg">No feedback submitted yet.</p>
+          <p className="text-muted-foreground text-lg">No feedback received yet.</p>
           <p className="text-muted-foreground text-sm mt-2">
-            Submit your first feedback to see results here!
+            Share your feedback link with customers to start collecting responses!
           </p>
         </div>
       ) : (
@@ -129,12 +173,7 @@ export default function ResultsPage() {
               value={totalResponses.toLocaleString()}
               icon={MessageSquare}
             />
-            <MetricCard
-              title="Response Rate"
-              value={responseRate}
-              icon={TrendingUp}
-              trend="This month"
-            />
+            <MetricCard title="Response Rate" value={responseRate} icon={TrendingUp} trend="This month" />
             <MetricCard
               title="Top Category"
               value={topCategory?.category || "N/A"}
@@ -150,9 +189,7 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {distributionData.some(d => d.value > 0) && (
-            <DistributionChart data={distributionData} />
-          )}
+          {distributionData.some((d) => d.value > 0) && <DistributionChart data={distributionData} />}
 
           {recentFeedbackItems.length > 0 && (
             <div>
