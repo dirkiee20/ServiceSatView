@@ -5,12 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import StarRating from "./StarRating";
 import { CheckCircle2 } from "lucide-react";
+import type { InsertFeedback } from "@shared/schema";
 
 interface FeedbackFormProps {
-  onSubmit?: (data: { rating: number; category: string; comment: string }) => void;
+  onSubmit?: (data: InsertFeedback) => void;
 }
 
-const categories = [
+type CategoryType = "service_quality" | "response_time" | "problem_resolution" | "overall_experience";
+
+const categories: Array<{ id: CategoryType; label: string }> = [
   { id: "service_quality", label: "Service Quality" },
   { id: "response_time", label: "Response Time" },
   { id: "problem_resolution", label: "Problem Resolution" },
@@ -19,7 +22,7 @@ const categories = [
 
 export default function FeedbackForm({ onSubmit }: FeedbackFormProps) {
   const [rating, setRating] = useState(0);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState<CategoryType | "">("");
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
 

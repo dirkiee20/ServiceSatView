@@ -4,70 +4,100 @@ import CategoryChart from "@/components/CategoryChart";
 import DistributionChart from "@/components/DistributionChart";
 import RecentFeedback from "@/components/RecentFeedback";
 import { Star, MessageSquare, TrendingUp, Award } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Feedback } from "@shared/schema";
+import { formatDistanceToNow } from "date-fns";
+
+const categoryLabels: Record<string, string> = {
+  service_quality: "Service Quality",
+  response_time: "Response Time",
+  problem_resolution: "Problem Resolution",
+  overall_experience: "Overall Experience",
+};
 
 export default function ResultsPage() {
-  const trendData = [
-    { date: "Jan 1", rating: 3.8 },
-    { date: "Jan 5", rating: 4.0 },
-    { date: "Jan 10", rating: 4.2 },
-    { date: "Jan 15", rating: 4.1 },
-    { date: "Jan 20", rating: 4.3 },
-    { date: "Jan 25", rating: 4.5 },
-    { date: "Jan 30", rating: 4.3 },
-  ];
+  const { data: feedbackList = [], isLoading } = useQuery<Feedback[]>({
+    queryKey: ["/api/feedback"],
+  });
 
-  const categoryData = [
-    { category: "Service Quality", rating: 4.6 },
-    { category: "Response Time", rating: 4.2 },
-    { category: "Problem Resolution", rating: 4.1 },
-    { category: "Overall Experience", rating: 4.3 },
-  ];
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading feedback data...</p>
+      </div>
+    );
+  }
+
+  // Calculate statistics
+  const totalResponses = feedbackList.length;
+  const averageRating = totalResponses > 0
+    ? (feedbackList.reduce((sum, f) => sum + f.rating, 0) / totalResponses).toFixed(1)
+    : "0.0";
+
+  // Category breakdown
+  const categoryStats: Record<string, { total: number; sum: number }> = {};
+  feedbackList.forEach((f) => {
+    if (!categoryStats[f.category]) {
+      categoryStats[f.category] = { total: 0, sum: 0 };
+    }
+    categoryStats[f.category].total++;
+    categoryStats[f.category].sum += f.rating;
+  });
+
+  const categoryData = Object.entries(categoryStats).map(([category, stats]) => ({
+    category: categoryLabels[category] || category,
+    rating: parseFloat((stats.sum / stats.total).toFixed(1)),
+  }));
+
+  // Find top category
+  const topCategory = categoryData.length > 0
+    ? categoryData.reduce((max, curr) => curr.rating > max.rating ? curr : max)
+    : null;
+
+  // Rating distribution
+  const ratingCounts = [0, 0, 0, 0, 0];
+  feedbackList.forEach((f) => {
+    if (f.rating >= 1 && f.rating <= 5) {
+      ratingCounts[f.rating - 1]++;
+    }
+  });
 
   const distributionData = [
-    { name: "5 Stars", value: 45 },
-    { name: "4 Stars", value: 30 },
-    { name: "3 Stars", value: 15 },
-    { name: "2 Stars", value: 7 },
-    { name: "1 Star", value: 3 },
+    { name: "5 Stars", value: ratingCounts[4] },
+    { name: "4 Stars", value: ratingCounts[3] },
+    { name: "3 Stars", value: ratingCounts[2] },
+    { name: "2 Stars", value: ratingCounts[1] },
+    { name: "1 Star", value: ratingCounts[0] },
   ];
 
-  const recentFeedbackItems = [
-    {
-      id: "1",
-      rating: 5,
-      category: "service_quality",
-      comment: "Excellent service! The team was very responsive and resolved my issue quickly. I'm extremely satisfied with the support I received and would definitely recommend this service to others.",
-      timestamp: "2 hours ago",
-    },
-    {
-      id: "2",
-      rating: 4,
-      category: "response_time",
-      comment: "Pretty good response time. Could be faster but overall satisfied with the service provided by the team.",
-      timestamp: "5 hours ago",
-    },
-    {
-      id: "3",
-      rating: 3,
-      category: "problem_resolution",
-      comment: "The issue was resolved but it took longer than expected. The team was helpful though and kept me updated throughout the process.",
-      timestamp: "1 day ago",
-    },
-    {
-      id: "4",
-      rating: 5,
-      category: "overall_experience",
-      comment: "Outstanding experience from start to finish. Very professional team!",
-      timestamp: "1 day ago",
-    },
-    {
-      id: "5",
-      rating: 4,
-      category: "service_quality",
-      comment: "Good service quality, met my expectations. Would use again.",
-      timestamp: "2 days ago",
-    },
-  ];
+  // Trend data (last 7 days or grouped by date)
+  const trendData = feedbackList
+    .slice(0, 30)
+    .reverse()
+    .reduce((acc: Array<{ date: string; rating: number; count: number }>, feedback) => {
+      const date = new Date(feedback.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const existing = acc.find(item => item.date === date);
+      if (existing) {
+        existing.rating = (existing.rating * existing.count + feedback.rating) / (existing.count + 1);
+        existing.count++;
+      } else {
+        acc.push({ date, rating: feedback.rating, count: 1 });
+      }
+      return acc;
+    }, [])
+    .map(item => ({ date: item.date, rating: parseFloat(item.rating.toFixed(1)) }));
+
+  // Recent feedback for display
+  const recentFeedbackItems = feedbackList.slice(0, 10).map((f) => ({
+    id: f.id,
+    rating: f.rating,
+    category: f.category,
+    comment: f.comment,
+    timestamp: formatDistanceToNow(new Date(f.createdAt), { addSuffix: true }),
+  }));
+
+  // Calculate response rate (mock calculation for now)
+  const responseRate = totalResponses > 0 ? "89%" : "0%";
 
   return (
     <div className="p-8 space-y-8">
@@ -78,45 +108,60 @@ export default function ResultsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Average Rating"
-          value="4.3"
-          subtitle="Out of 5.0"
-          icon={Star}
-          trend="+0.3 from last month"
-        />
-        <MetricCard
-          title="Total Responses"
-          value="1,247"
-          icon={MessageSquare}
-          trend="+12% this month"
-        />
-        <MetricCard
-          title="Response Rate"
-          value="89%"
-          icon={TrendingUp}
-          trend="This month"
-        />
-        <MetricCard
-          title="Top Category"
-          value="Service Quality"
-          subtitle="4.6 average"
-          icon={Award}
-        />
-      </div>
+      {totalResponses === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground text-lg">No feedback submitted yet.</p>
+          <p className="text-muted-foreground text-sm mt-2">
+            Submit your first feedback to see results here!
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              title="Average Rating"
+              value={averageRating}
+              subtitle="Out of 5.0"
+              icon={Star}
+            />
+            <MetricCard
+              title="Total Responses"
+              value={totalResponses.toLocaleString()}
+              icon={MessageSquare}
+            />
+            <MetricCard
+              title="Response Rate"
+              value={responseRate}
+              icon={TrendingUp}
+              trend="This month"
+            />
+            <MetricCard
+              title="Top Category"
+              value={topCategory?.category || "N/A"}
+              subtitle={topCategory ? `${topCategory.rating} average` : undefined}
+              icon={Award}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TrendChart data={trendData} />
-        <CategoryChart data={categoryData} />
-      </div>
+          {trendData.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TrendChart data={trendData} />
+              {categoryData.length > 0 && <CategoryChart data={categoryData} />}
+            </div>
+          )}
 
-      <DistributionChart data={distributionData} />
+          {distributionData.some(d => d.value > 0) && (
+            <DistributionChart data={distributionData} />
+          )}
 
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Recent Feedback</h2>
-        <RecentFeedback items={recentFeedbackItems} />
-      </div>
+          {recentFeedbackItems.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-semibold mb-4">Recent Feedback</h2>
+              <RecentFeedback items={recentFeedbackItems} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

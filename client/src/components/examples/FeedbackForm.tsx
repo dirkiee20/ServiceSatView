@@ -1,7 +1,8 @@
 import FeedbackForm from "../FeedbackForm";
+import type { InsertFeedback } from "@shared/schema";
 
 export default function FeedbackFormExample() {
-  const handleSubmit = (data: { rating: number; category: string; comment: string }) => {
+  const handleSubmit = (data: InsertFeedback) => {
     console.log("Feedback submitted:", data);
   };
 
