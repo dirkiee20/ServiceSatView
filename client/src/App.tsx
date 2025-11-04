@@ -44,7 +44,7 @@ function Router() {
   );
 }
 
-export default function App() {
+function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   
   const style = {
@@ -55,47 +55,49 @@ export default function App() {
   // Show public routes without sidebar
   if (window.location.pathname.startsWith("/f/")) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <TooltipProvider>
+        <Router />
+        <Toaster />
+      </TooltipProvider>
     );
   }
 
   // Show landing page without sidebar for unauthenticated users
   if (isLoading || !isAuthenticated) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <TooltipProvider>
+        <Router />
+        <Toaster />
+      </TooltipProvider>
     );
   }
 
   // Show authenticated layout with sidebar
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex h-screen w-full">
-            <AppSidebar />
-            <div className="flex flex-col flex-1">
-              <header className="flex items-center justify-between p-4 border-b">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
-                <ThemeToggle />
-              </header>
-              <main className="flex-1 overflow-auto">
-                <Router />
-              </main>
-            </div>
+    <TooltipProvider>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1">
+            <header className="flex items-center justify-between p-4 border-b">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+              <ThemeToggle />
+            </header>
+            <main className="flex-1 overflow-auto">
+              <Router />
+            </main>
           </div>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
+        </div>
+      </SidebarProvider>
+      <Toaster />
+    </TooltipProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
     </QueryClientProvider>
   );
 }
