@@ -1,37 +1,38 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type Feedback, type InsertFeedback } from "@shared/schema";
 import { randomUUID } from "crypto";
 
-// modify the interface with any CRUD methods
-// you might need
-
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getFeedback(id: string): Promise<Feedback | undefined>;
+  getAllFeedback(): Promise<Feedback[]>;
+  createFeedback(feedback: InsertFeedback): Promise<Feedback>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private feedback: Map<string, Feedback>;
 
   constructor() {
-    this.users = new Map();
+    this.feedback = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getFeedback(id: string): Promise<Feedback | undefined> {
+    return this.feedback.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  async getAllFeedback(): Promise<Feedback[]> {
+    return Array.from(this.feedback.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createFeedback(insertFeedback: InsertFeedback): Promise<Feedback> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const feedback: Feedback = {
+      ...insertFeedback,
+      id,
+      createdAt: new Date(),
+    };
+    this.feedback.set(id, feedback);
+    return feedback;
   }
 }
 
