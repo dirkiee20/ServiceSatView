@@ -59,6 +59,8 @@ async function upsertUser(claims: any) {
     lastName: claims["last_name"],
     profileImageUrl: claims["profile_image_url"],
   });
+  
+  await storage.createDefaultTemplates(claims["sub"]);
 }
 
 export async function setupAuth(app: Express) {

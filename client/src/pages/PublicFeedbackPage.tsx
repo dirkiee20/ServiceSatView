@@ -1,14 +1,18 @@
 import FeedbackForm from "@/components/FeedbackForm";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import type { InsertFeedback } from "@shared/schema";
+import type { InsertFeedback, Template } from "@shared/schema";
 import { useParams } from "wouter";
 
 export default function PublicFeedbackPage() {
   const { toast } = useToast();
   const params = useParams<{ linkId: string }>();
   const linkId = params.linkId;
+
+  const { data: templates = [] } = useQuery<Template[]>({
+    queryKey: [`/api/templates/public/${linkId}`],
+  });
 
   const createFeedbackMutation = useMutation({
     mutationFn: async (data: InsertFeedback) => {
@@ -41,7 +45,7 @@ export default function PublicFeedbackPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <div className="w-full">
-        <FeedbackForm onSubmit={handleSubmit} />
+        <FeedbackForm onSubmit={handleSubmit} templates={templates} />
       </div>
     </div>
   );

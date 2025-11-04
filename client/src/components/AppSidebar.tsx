@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { MessageSquarePlus, BarChart3, Link as LinkIcon, LogOut } from "lucide-react";
+import { MessageSquarePlus, BarChart3, Link as LinkIcon, LogOut, FileText } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,11 @@ const items = [
     title: "View Results",
     url: "/results",
     icon: BarChart3,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: FileText,
   },
   {
     title: "Integration",

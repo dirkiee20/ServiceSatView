@@ -43,10 +43,43 @@ export const upsertUserSchema = createInsertSchema(users).omit({
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Templates table - Define feedback templates with custom categories
+export const templates = pgTable("templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  categories: jsonb("categories").notNull().$type<Array<{ id: string; label: string }>>(),
+  isDefault: integer("is_default").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTemplateSchema = createInsertSchema(templates)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    userId: true,
+  })
+  .extend({
+    name: z.string().min(1).max(100),
+    description: z.string().optional(),
+    categories: z.array(z.object({
+      id: z.string(),
+      label: z.string(),
+    })).min(1).max(10),
+    isDefault: z.number().min(0).max(1).default(0),
+  });
+
+export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type Template = typeof templates.$inferSelect;
+
 // Feedback table
 export const feedback = pgTable("feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  templateId: varchar("template_id").references(() => templates.id, { onDelete: "set null" }),
   rating: integer("rating").notNull(),
   category: text("category").notNull(),
   comment: text("comment").notNull(),
@@ -60,13 +93,9 @@ export const insertFeedbackSchema = createInsertSchema(feedback)
     userId: true,
   })
   .extend({
+    templateId: z.string().optional(),
     rating: z.number().min(1).max(5),
-    category: z.enum([
-      "service_quality",
-      "response_time",
-      "problem_resolution",
-      "overall_experience",
-    ]),
+    category: z.string().min(1),
     comment: z.string().min(1).max(500),
   });
 

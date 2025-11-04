@@ -1,8 +1,8 @@
 import FeedbackForm from "@/components/FeedbackForm";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { InsertFeedback } from "@shared/schema";
+import type { InsertFeedback, Template } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,11 @@ import { useAuth } from "@/hooks/useAuth";
 export default function HomePage() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+
+  const { data: templates = [] } = useQuery<Template[]>({
+    queryKey: ["/api/templates"],
+    enabled: isAuthenticated,
+  });
 
   // Redirect to login if not authenticated - Replit Auth integration
   useEffect(() => {
@@ -78,7 +83,7 @@ export default function HomePage() {
           This is a demo page where you can test submitting feedback as if you were a customer
         </p>
       </div>
-      <FeedbackForm onSubmit={handleSubmit} />
+      <FeedbackForm onSubmit={handleSubmit} templates={templates} />
     </div>
   );
 }

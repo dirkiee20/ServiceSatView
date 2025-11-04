@@ -14,6 +14,7 @@ import ResultsPage from "@/pages/ResultsPage";
 import IntegrationPage from "@/pages/IntegrationPage";
 import PublicFeedbackPage from "@/pages/PublicFeedbackPage";
 import AboutPage from "@/pages/AboutPage";
+import TemplatesPage from "@/pages/TemplatesPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -35,6 +36,7 @@ function Router() {
           {/* Authenticated routes */}
           <Route path="/" component={HomePage} />
           <Route path="/results" component={ResultsPage} />
+          <Route path="/templates" component={TemplatesPage} />
           <Route path="/integration" component={IntegrationPage} />
           <Route path="/about" component={AboutPage} />
         </>
