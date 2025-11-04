@@ -48,10 +48,11 @@ Preferred communication style: Simple, everyday language.
 
 **Key Pages**
 - **Landing Page**: Marketing page for unauthenticated users with login CTA
-- **Home Page (Dashboard)**: Test feedback form for authenticated users
+- **Home Page (Dashboard)**: Test feedback form for authenticated users with template selection
 - **Results Page**: Analytics dashboard showing all feedback metrics
+- **Templates Page**: Manage feedback templates with custom categories
 - **Integration Page**: Unique feedback link and QR code for each user
-- **Public Feedback Page**: Public-facing form accessible via /f/{linkId}
+- **Public Feedback Page**: Public-facing form accessible via /f/{linkId} with template support
 
 ### Backend Architecture
 
@@ -97,11 +98,21 @@ Preferred communication style: Simple, everyday language.
   - sess (jsonb)
   - expire (timestamp)
 
+- **templates**: Custom feedback form templates
+  - id (varchar, primary key)
+  - userId (foreign key to users)
+  - name (varchar, template name)
+  - description (text, optional)
+  - categories (jsonb, array of {id, label} objects)
+  - isDefault (integer, 0 or 1)
+  - createdAt, updatedAt
+
 - **feedback**: Customer feedback entries
   - id (varchar, primary key)
   - userId (foreign key to users)
+  - templateId (foreign key to templates, optional)
   - rating (integer, 1-5)
-  - category (enum: service_quality, response_time, problem_resolution, overall_experience)
+  - category (text, dynamic based on selected template)
   - comment (text, max 500 chars)
   - createdAt (timestamp)
 
@@ -185,3 +196,9 @@ Each registered user is a tenant with their own:
 - Created landing page for unauthenticated users
 - Updated all routes to support public feedback submission and protected dashboard access
 - Added user profile display in sidebar with logout functionality
+- **Implemented Feedback Template System:**
+  - Added templates table with support for custom feedback categories
+  - Created template management UI allowing users to create, edit, and delete templates
+  - Implemented default template creation on user registration (Customer Service, Product Feedback, Restaurant Experience, Event Feedback)
+  - Updated feedback forms to support template selection with dynamic categories
+  - Added Templates page to navigation for template management
